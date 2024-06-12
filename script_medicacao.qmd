@@ -1,0 +1,68 @@
+```{r}
+library(tidyverse)
+library(usethis)
+```
+
+```{r}
+#| label: Se apresentar pro Git
+usethis::use_git_config(
+  user.name = "hedilira",
+  user.email = "heldinos@hotmail.com")
+```
+
+```{r}
+#| label: Criar um PAT - Personal Access Token
+
+usethis::create_github_token()
+
+# Essa função vai levar a gente para a página do github # para criar um token.Precisamos dar um nome informativo (ex. em qual computador vamos usar esse token??) # e uma data de expiração. Não precisamos mudar as donfigurações de acesso
+```
+
+```{r}
+# Para registrar o token
+
+# Nesse caso eu já tenho um token registrado e com esse comando eu consigo atualizar caso deseje. 
+
+gitcreds::gitcreds_set()
+```
+
+```{r}
+# Mostra a situação do Git e Github do momento, verificar se tudo deu certo e solucionar erros, ontem três coisas são ESSENCIAIS: 
+usethis::git_sitrep()
+```
+
+• Name: 'hedilira' - **ESSENCIAL**
+
+• Email: 'heldinos\@hotmail.com' - **ESSENCIAL**
+
+• Global (user-level) gitignore file: <unset>
+
+• Vaccinated: FALSE
+
+ℹ See `?git_vaccinate` to learn more
+
+ℹ Defaulting to 'https' Git protocol
+
+• Default Git protocol: 'https'
+
+• Default initial branch name: <unset>
+
+── GitHub user
+
+• Default GitHub host: '[https://github.com'](https://github.com')
+
+• Personal access token for '[https://github.com':](https://github.com':) '<discovered>' - **ESSENCIAL**
+
+• GitHub user: 'heldilira'
+
+• Token scopes: 'admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:packages'
+
+• Email(s): 'heldinos\@hotmail.com (primary)', '146135883+heldilira\@users.noreply.github.com'
+
+── Active usethis project: '/Users/helderlira/Library/CloudStorage/OneDrive-Personal/01_Projetos/01_Psicologia_do_sono/07_artigo_medicacao'
+
+```{r}
+usethis::use_git()
+
+## Para começar a usar o git em um projeto que não tem nenhum vinculo com git/github
+```
