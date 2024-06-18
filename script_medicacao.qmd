@@ -1,0 +1,230 @@
+```{r}
+#| label: import packages
+
+library(tidyverse)
+library(readr)
+library(summarytools)
+library(gtsummary)
+library(modelsummary)
+library(janitor)
+library(treemap)
+library(esquisse)
+library(kableExtra)
+library(flextable)
+library(officer)
+library(knitr)
+library(rmarkdown)
+```
+
+```{r}
+#| label: import and transform data
+
+df <- read_csv("data/df.csv")
+
+df <- df |> 
+  filter(insone == 1) |> 
+  filter(medicacao___0 == 0) |> 
+  mutate(
+    sexo_tr = case_when(
+      sexo == 1 ~ "Feminino",
+      sexo == 2 ~ "Masculino"),
+    escolaridade_tr = case_when(
+      escolaridade <= 8 ~ "Nao Superior",
+      escolaridade >= 9 ~ "Superior"),
+    estado_civil_tr = case_when(
+      estado_civil <= 2 ~ "Married/United",
+      estado_civil >= 3 ~ "Single/Divorced"),
+    randomizacao_tr = case_when(
+      randomizacao == 1 ~ "ACT",
+      randomizacao == 2 ~ "CBT",
+      randomizacao == 3 ~ "WL"),
+    etnia_tr = case_when(
+      etnia == 1 ~ "Branco",
+      etnia >= 2 ~ "Pretos e Pardos"),
+    atividade_fisica_tr = case_when(
+      atividade_fisica <= 1 ~ "Sedentário (<2x/semana)",
+      atividade_fisica >= 2 ~ "Ativo (>2x/semana)",
+    )) |>
+  mutate(medicacao_semana_tr = case_when(
+    medicacao_semana <= 5 ~ "Uso Ocasional (1-5 dias)",
+    medicacao_semana >= 6 ~ "Uso Contínuo (6-7 dias)")) |> 
+  rename(toma_remedio = medicacao___0) |>
+  mutate(classe_medicacao = case_when(
+    medicacao___1 == 1 ~ "Benzodiazepínico",
+    medicacao___2 == 1 ~ "Benzodiazepínico",
+    medicacao___3 == 1 ~ "Benzodiazepínico",
+    medicacao___4 == 1 ~ "Benzodiazepínico",
+    medicacao___5 == 1 ~ "Drogas Z",
+    medicacao___6 == 1 ~ "Drogas Z",
+    medicacao___7 == 1 ~ "Antidepressivos sedativos",
+    medicacao___8 == 1 ~ "Antidepressivos sedativos",
+    medicacao___9 == 1 ~ "Antidepressivos sedativos",
+    medicacao___10 == 1 ~ "Anticonvulsivantes",
+    medicacao___11 == 1 ~ "Anticonvulsivantes",
+    medicacao___12 == 1 ~ "Antidepressivos sedativos",
+    medicacao___13 == 1 ~ "Antipsicóticos",
+    medicacao___14 == 1 ~ "Antipsicóticos",
+    medicacao___15 == 1 ~ "Agonista do receptor de melatonina",
+    medicacao___16 == 1 ~ "Agonista do receptor de melatonina",
+    medicacao___17 == 1 ~ "Sem Receita",
+    medicacao___18 == 1 ~ "Sem Receita",
+    medicacao___19 == 1 ~"Sem Receita"))#|> 
+   # rename(
+   #  "Alprazolam" = medicacao___1, 
+   #  "Bromazepam" = medicacao___2,    
+   #  "Clonazepam" = medicacao___3,
+   #  "Diazepam" = medicacao___4,
+   #  "Zolpidem" = medicacao___5,
+   #  "Eszopiclona" = medicacao___6,
+   #  "Amitriptilina" = medicacao___7,
+   #  "Doxepina" = medicacao___8,
+   #  "Trazodona" = medicacao___9,
+   #  "Gabapentina" = medicacao___10,
+   #  "Pregabalina" = medicacao___11,
+   #  "Mirtazapina" = medicacao___12,
+   #  "Olanzapina" = medicacao___13, 
+   #  "Quetiapina" = medicacao___14,
+   #  "Ramelteon" = medicacao___15,
+   #  "Agomelatina" = medicacao___16,
+   #  "Anti_histaminicos" = medicacao___17,
+   #  "Relaxante_muscular" = medicacao___18, 
+   #  "Dramin" = medicacao___19)
+```
+
+```{r}
+#| label: creating long_df
+long_df <- df |> 
+  pivot_longer(
+    cols = starts_with("medicacao___"),
+    names_to = "medicacao",
+    values_to = "taken") |> 
+  mutate(medicacao = case_when(
+    medicacao == "medicacao___1" ~ "Alprazolam",
+    medicacao == "medicacao___2" ~  "Bromazepam",
+    medicacao == "medicacao___3" ~ "Clonazepam",
+    medicacao == "medicacao___4" ~ "Diazepam",
+    medicacao == "medicacao___5" ~ "Zolpidem",
+    medicacao == "medicacao___6" ~ "Eszopiclona",
+    medicacao == "medicacao___7" ~ "Amitriptilina",
+    medicacao == "medicacao___8" ~ "Doxepina",
+    medicacao == "medicacao___9" ~ "Trazodona",
+    medicacao == "medicacao___10" ~ "Gabapentina",
+    medicacao == "medicacao___11" ~  "Pregabalina",
+    medicacao == "medicacao___12" ~  "Mirtazapina",
+    medicacao == "medicacao___13" ~  "Olanzapina",
+    medicacao == "medicacao___14" ~  "Quetiapina",
+    medicacao == "medicacao___15" ~  "Ramelteon",
+    medicacao == "medicacao___16" ~  "Agomelatina",
+    medicacao == "medicacao___17" ~  "Anti_histaminicos",
+    medicacao == "medicacao___18" ~  "Relaxante_muscular",
+    medicacao == "medicacao___19" ~  "Dramin")) |> 
+    mutate(classe_medicacao = case_when(
+    medicacao == "Alprazolam" ~"Benzodiazepínico",
+    medicacao == "Bromazepam" ~"Benzodiazepínico",
+    medicacao == "Clonazepam" ~"Benzodiazepínico",
+    medicacao == "Diazepam" ~"Benzodiazepínico",
+    medicacao == "Zolpidem" ~"Drogas Z",
+    medicacao == "Eszopiclona" ~"Drogas Z",
+    medicacao == "Amitriptilina" ~"Antidepressivos sedativos",
+    medicacao == "Doxepina" ~"Antidepressivos sedativos",
+    medicacao == "Trazodona" ~"Antidepressivos sedativos",
+    medicacao == "Gabapentina" ~"Anticonvulsivantes",
+    medicacao == "Pregabalina" ~ "Anticonvulsivantes",
+    medicacao == "Mirtazapina" ~ "Antidepressivos sedativos",
+    medicacao == "Olanzapina" ~ "Antipsicóticos",
+    medicacao == "Quetiapina" ~ "Antipsicóticos",
+    medicacao == "Ramelteon" ~ "Agonista do receptor de melatonina",
+    medicacao == "Agomelatina" ~ "Agonista do receptor de melatonina",
+    medicacao == "Anti_histaminicos" ~ "Sem Receita",
+    medicacao == "Relaxante_muscular" ~ "Sem Receita",
+    medicacao == "Dramin" ~ "Sem Receita")) |> 
+  filter(!taken == 0)
+```
+
+```{r}
+#| label: treemap
+treemap(dtf = long_df, vSize = "taken", index = "medicacao", vColor = "classe_medicacao", type = "categorical")
+```
+
+```{r}
+#| label: creating sum_df
+sum_df <- long_df |> 
+  group_by(medicacao) |> 
+  summarise(total_taken = sum(taken, na.rm = TRUE)) |> 
+  arrange(desc(total_taken)) 
+```
+
+# Tabela de Descritivos
+
+```{r}
+#| label: table 1
+
+tbl <- df |> 
+  select(medicacao___1, medicacao___2, medicacao___3, medicacao___4, medicacao___5, medicacao___6, medicacao___7, medicacao___8, medicacao___9, medicacao___9, medicacao___12, medicacao___10, starts_with("medicacao___"),
+         medicacao_semana_tr,
+         idade, 
+         sexo_tr,
+         atividade_fisica_tr,
+         escolaridade_tr, 
+         estado_civil_tr, 
+         etnia_tr,
+         regiao, 
+         igi_escore, 
+         starts_with("ehad_")) |> 
+  tbl_summary(
+    by = medicacao_semana_tr,
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    digits = all_continuous() ~ 2,
+    label = list(escolaridade_tr ~ "Escolaridade",
+                 idade ~ "Idade",
+                 etnia_tr ~ "Etnia",
+                 sexo_tr ~ "Sexo",
+                 regiao ~ "Região",
+                 estado_civil_tr ~ "Estado Civil",
+                 atividade_fisica_tr ~ "Atividade Física",
+                 igi_escore ~ "IGI Score",
+                 ehad_depressao_escore ~ "Depressão (HADS-D)",
+                 ehad_ansiedade_escore ~ "Ansiedade (HADS-A)",
+                 medicacao___1 ~ "Alprazolam",
+                 medicacao___2 ~  "Bromazepam",
+                 medicacao___3 ~ "Clonazepam",
+                 medicacao___4 ~ "Diazepam",
+                 medicacao___5 ~ "Zolpidem",
+                 medicacao___6 ~ "Eszopiclona",
+                 medicacao___7 ~ "Amitriptilina",
+                 medicacao___8 ~ "Doxepina",
+                 medicacao___9 ~ "Trazodona",
+                 medicacao___10 ~ "Gabapentina",
+                 medicacao___11 ~  "Pregabalina",
+                 medicacao___12 ~  "Mirtazapina",
+                 medicacao___13 ~  "Olanzapina",
+                 medicacao___14 ~  "Quetiapina",
+                 medicacao___15 ~  "Ramelteon",
+                 medicacao___16 ~  "Agomelatina",
+                 medicacao___17 ~  "Anti-histamínicos",
+                 medicacao___18 ~  "Relaxante Muscular",
+                 medicacao___19 ~  "Dramin"
+                 ),
+    missing = "no"
+  )
+
+opts <- options(knitr.kable.NA = "")
+
+kable_html <- kable(tbl, "html") |> 
+  pack_rows(index = c("Benzodiazepínico" = 4,
+                      "Drogas Z" = 2,
+                      "Antidepressivos Sedativos" = 4,
+                      "Anticonvulsivantes" = 2,
+                      "Antipsicóticos" = 2,
+                      "Agonista do receptor de melatonina" = 2,
+                      "Over the Counter" = 3
+                      ))
+
+
+html_file <- "table.html"
+writeLines(as.character(kable_html), con = html_file)
+pandoc_convert(html_file, to = "docx", output = "table.docx")
+```
