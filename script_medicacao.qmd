@@ -213,7 +213,7 @@ tbl <- df |>
 
 opts <- options(knitr.kable.NA = "")
 
-kable_html <- kable(tbl, "html") |> 
+kable_html <- kable(tbl, "html", align = "lcc") |> 
   pack_rows(index = c("Benzodiazepínico" = 4,
                       "Drogas Z" = 2,
                       "Antidepressivos Sedativos" = 4,
