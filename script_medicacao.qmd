@@ -14,6 +14,7 @@ library(flextable)
 library(officer)
 library(knitr)
 library(rmarkdown)
+library(patchwork)
 ```
 
 ```{r}
@@ -68,7 +69,7 @@ df <- df |>
     medicacao___16 == 1 ~ "Agonista do receptor de melatonina",
     medicacao___17 == 1 ~ "Sem Receita",
     medicacao___18 == 1 ~ "Sem Receita",
-    medicacao___19 == 1 ~"Sem Receita"))#|> 
+    medicacao___19 == 1 ~"Sem Receita")) #|> 
    # rename(
    #  "Alprazolam" = medicacao___1, 
    #  "Bromazepam" = medicacao___2,    
@@ -147,11 +148,58 @@ treemap(dtf = long_df, vSize = "taken", index = "medicacao", vColor = "classe_me
 ```
 
 ```{r}
-#| label: creating sum_df
+#| label: sum_df
 sum_df <- long_df |> 
   group_by(medicacao) |> 
   summarise(total_taken = sum(taken, na.rm = TRUE)) |> 
-  arrange(desc(total_taken)) 
+  mutate(classe_medicacao = case_when(
+    medicacao == "Alprazolam" ~"Benzodiazepínico",
+    medicacao == "Bromazepam" ~"Benzodiazepínico",
+    medicacao == "Clonazepam" ~"Benzodiazepínico",
+    medicacao == "Diazepam" ~"Benzodiazepínico",
+    medicacao == "Zolpidem" ~"Drogas Z",
+    medicacao == "Eszopiclona" ~"Drogas Z",
+    medicacao == "Amitriptilina" ~"Antidepressivos sedativos",
+    medicacao == "Doxepina" ~"Antidepressivos sedativos",
+    medicacao == "Trazodona" ~"Antidepressivos sedativos",
+    medicacao == "Gabapentina" ~"Anticonvulsivantes",
+    medicacao == "Pregabalina" ~ "Anticonvulsivantes",
+    medicacao == "Mirtazapina" ~ "Antidepressivos sedativos",
+    medicacao == "Olanzapina" ~ "Antipsicóticos",
+    medicacao == "Quetiapina" ~ "Antipsicóticos",
+    medicacao == "Ramelteon" ~ "Agonista do receptor de melatonina",
+    medicacao == "Agomelatina" ~ "Agonista do receptor de melatonina",
+    medicacao == "Anti_histaminicos" ~ "Sem Receita",
+    medicacao == "Relaxante_muscular" ~ "Sem Receita",
+    medicacao == "Dramin" ~ "Sem Receita"))|> 
+  mutate(across(c("medicacao", "classe_medicacao"), as_factor), 
+         medicacao = fct_reorder(medicacao, total_taken))
+
+#treemap(dtf = sum_df, vSize = "total_taken", index = "medicacao", vColor = "classe_medicacao", type = "categorical")
+
+bar_plot_total <- ggplot(sum_df) +
+  aes(
+    x = medicacao,
+    fill = classe_medicacao,
+    weight = total_taken
+  ) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Paired", direction = 1) +
+  coord_flip() +
+  theme_minimal() 
+
+sum_df |> 
+  mutate(medicacao = fct_reorder(.x = medicacao, .fun = sum(total_taken))) |> 
+  ggplot() +
+  aes(
+    x = medicacao,
+    fill = classe_medicacao,
+    weight = total_taken
+  ) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Paired", direction = 1) +
+  coord_flip() +
+  theme_minimal() 
 ```
 
 # Tabela de Descritivos
@@ -209,11 +257,12 @@ tbl <- df |>
                  medicacao___19 ~  "Dramin"
                  ),
     missing = "no"
-  )
+  ) |> add_p()
+
 
 opts <- options(knitr.kable.NA = "")
 
-kable_html <- kable(tbl, "html", align = "lcc") |> 
+kable_html <- kable(tbl, "html", align = "lccc") |> 
   pack_rows(index = c("Benzodiazepínico" = 4,
                       "Drogas Z" = 2,
                       "Antidepressivos Sedativos" = 4,
@@ -221,10 +270,12 @@ kable_html <- kable(tbl, "html", align = "lcc") |>
                       "Antipsicóticos" = 2,
                       "Agonista do receptor de melatonina" = 2,
                       "Over the Counter" = 3
-                      ))
+                      )) |> 
+  add_indent(positions = c(22, 23, 25, 26, 28, 29, 31, 32, 34, 35, 37:42))
 
+kable_html
 
-html_file <- "table.html"
+html_file <- "index.html"
 writeLines(as.character(kable_html), con = html_file)
 pandoc_convert(html_file, to = "docx", output = "table.docx")
 ```
