@@ -15,6 +15,7 @@ library(officer)
 library(knitr)
 library(rmarkdown)
 library(patchwork)
+library(easystats)
 ```
 
 ```{r}
@@ -69,31 +70,12 @@ df <- df |>
     medicacao___16 == 1 ~ "Agonista do receptor de melatonina",
     medicacao___17 == 1 ~ "Sem Receita",
     medicacao___18 == 1 ~ "Sem Receita",
-    medicacao___19 == 1 ~"Sem Receita")) #|> 
-   # rename(
-   #  "Alprazolam" = medicacao___1, 
-   #  "Bromazepam" = medicacao___2,    
-   #  "Clonazepam" = medicacao___3,
-   #  "Diazepam" = medicacao___4,
-   #  "Zolpidem" = medicacao___5,
-   #  "Eszopiclona" = medicacao___6,
-   #  "Amitriptilina" = medicacao___7,
-   #  "Doxepina" = medicacao___8,
-   #  "Trazodona" = medicacao___9,
-   #  "Gabapentina" = medicacao___10,
-   #  "Pregabalina" = medicacao___11,
-   #  "Mirtazapina" = medicacao___12,
-   #  "Olanzapina" = medicacao___13, 
-   #  "Quetiapina" = medicacao___14,
-   #  "Ramelteon" = medicacao___15,
-   #  "Agomelatina" = medicacao___16,
-   #  "Anti_histaminicos" = medicacao___17,
-   #  "Relaxante_muscular" = medicacao___18, 
-   #  "Dramin" = medicacao___19)
+    medicacao___19 == 1 ~"Sem Receita")) |> 
+  mutate(across(ends_with("tr"), as_factor))
 ```
 
 ```{r}
-#| label: creating long_df
+#| label: long_df
 long_df <- df |> 
   pivot_longer(
     cols = starts_with("medicacao___"),
@@ -143,11 +125,6 @@ long_df <- df |>
 ```
 
 ```{r}
-#| label: treemap
-treemap(dtf = long_df, vSize = "taken", index = "medicacao", vColor = "classe_medicacao", type = "categorical")
-```
-
-```{r}
 #| label: sum_df
 sum_df <- long_df |> 
   group_by(medicacao) |> 
@@ -174,22 +151,13 @@ sum_df <- long_df |>
     medicacao == "Dramin" ~ "Sem Receita"))|> 
   mutate(across(c("medicacao", "classe_medicacao"), as_factor), 
          medicacao = fct_reorder(medicacao, total_taken))
+```
 
-#treemap(dtf = sum_df, vSize = "total_taken", index = "medicacao", vColor = "classe_medicacao", type = "categorical")
+```{r}
+#| label: ✅ barras por medicamento (filtrado para > 45)
 
-bar_plot_total <- ggplot(sum_df) +
-  aes(
-    x = medicacao,
-    fill = classe_medicacao,
-    weight = total_taken
-  ) +
-  geom_bar() +
-  scale_fill_brewer(palette = "Paired", direction = 1) +
-  coord_flip() +
-  theme_minimal() 
-
-sum_df |> 
-  mutate(medicacao = fct_reorder(.x = medicacao, .fun = sum(total_taken))) |> 
+bar_plot_filtered <- sum_df |> 
+  filter(total_taken > 45) |> 
   ggplot() +
   aes(
     x = medicacao,
@@ -197,9 +165,61 @@ sum_df |>
     weight = total_taken
   ) +
   geom_bar() +
-  scale_fill_brewer(palette = "Paired", direction = 1) +
+  scale_fill_brewer(palette = "Set2", direction = -1) +
   coord_flip() +
   theme_minimal() 
+
+ggplot2::ggsave("img/bar_plot_filtered.png", plot = bar_plot_filtered, width = 10, height = 6, dpi = 300)
+```
+
+```{r}
+#| label: ✅ barras de proporção de uso de medicamentos entre os grupos (ocasional vs contínuo)
+#| 
+bar_prop <- long_df |>
+ ggplot() +
+  aes(x = medicacao, fill = medicacao_semana_tr) +
+  geom_bar(position = "fill") +
+  scale_fill_hue(direction = 1) +
+  coord_flip() +
+  theme_minimal()
+
+ggplot2::ggsave("img/bar_prop.png", plot = bar_prop, width = 10, height = 6, dpi = 300)
+```
+
+```{r}
+#| label: barras por classe
+
+bar_class_total <- sum_df |> 
+  group_by(classe_medicacao)|>
+  summarise(sum(total_taken)) |>
+  rename(sum_total_taken = `sum(total_taken)`) |> 
+  mutate(classe_medicacao = fct_reorder(classe_medicacao, sum_total_taken)) |> 
+    ggplot() +
+      aes(
+        x = classe_medicacao,
+        fill = classe_medicacao,
+        weight = sum_total_taken
+      ) +
+      geom_bar() +
+      scale_fill_brewer(palette = "Paired", direction = 1) +
+      coord_flip() +
+      theme_minimal() 
+
+ggplot2::ggsave("img/bar_class_total.png", plot = bar_class_total, width = 10, height = 6, dpi = 300)
+
+bar_class_total
+```
+
+```{r}
+bar_prop_class <- long_df |>
+ ggplot() +
+  aes(x = classe_medicacao, fill = medicacao_semana_tr) +
+  geom_bar(position = "fill") +
+  scale_fill_hue(direction = 1) +
+  coord_flip() +
+  theme_minimal()
+
+ggplot2::ggsave("img/bar_prop_class.png", plot = bar_prop_class, width = 10, height = 6, dpi = 300)
 ```
 
 # Tabela de Descritivos
@@ -259,9 +279,14 @@ tbl <- df |>
     missing = "no"
   ) |> add_p()
 
-
 opts <- options(knitr.kable.NA = "")
 
+
+tbl_tibble <- as_tibble(x = tbl) 
+write_csv(x = tbl_tibble, file = "table1.csv", na = "")
+```
+
+```{r}
 kable_html <- kable(tbl, "html", align = "lccc") |> 
   pack_rows(index = c("Benzodiazepínico" = 4,
                       "Drogas Z" = 2,
@@ -273,9 +298,33 @@ kable_html <- kable(tbl, "html", align = "lccc") |>
                       )) |> 
   add_indent(positions = c(22, 23, 25, 26, 28, 29, 31, 32, 34, 35, 37:42))
 
-kable_html
-
 html_file <- "index.html"
 writeLines(as.character(kable_html), con = html_file)
 pandoc_convert(html_file, to = "docx", output = "table.docx")
+```
+
+Regressão Logística
+
+```{r}
+
+#df$medicacao_semana_tr <- fct_relevel(df$randomizacao_tr, c("Uso Contínuo (6-7 dias)", "Uso Ocasional (1-5 dias)"))
+
+logit_model <- glm(medicacao_semana_tr ~ sexo_tr + escolaridade_tr + estado_civil_tr + etnia_tr + atividade_fisica_tr + igi_escore + ehad_ansiedade_escore + ehad_depressao_escore, data = df, family = binomial)
+
+modelsummary(logit_model,
+             exponentiate = TRUE,
+             stars = c('*' =.05, '**' = .01),
+             fmt = 2, 
+             estimate = "{estimate}{stars} [{conf.low}, {conf.high}]", statistic = NULL )
+
+levels(df$medicacao_semana_tr)
+#  report(logit_model)
+```
+
+```{r}
+#| label: check model (VD = medicacao_semana_tr)
+
+check_autocorrelation(logit_model)
+check_collinearity(logit_model)
+check_model(logit_model)
 ```

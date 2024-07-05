@@ -1,0 +1,73 @@
+---
+title: "authors"
+format: html
+editor: visual
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(results = 'asis',
+                      echo = FALSE,
+                      warning = FALSE,
+                      tidy = FALSE,
+                      message = FALSE,
+                      fig.align = 'center',
+                      out.width = "100%")
+options(knitr.table.format = "html")
+```
+
+```{r}
+library(kableExtra)
+library(tidyverse)
+```
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r fig-bar_plot_filtered}
+#| fig.cap: "Os 10 medicamentos mais utilizados pela amostra total"
+#| echo: false
+
+knitr::include_graphics("img/bar_plot_filtered.png")
+```
+
+```{r fig-bar_prop}
+#| fig.cap: "Proporção de uso de medicamentos entre os grupos (Uso Ocasional vs Uso Contínuo)"
+#| echo: false
+knitr::include_graphics("img/bar_prop.png")
+```
+
+```{r fig-bar_class_total}
+#| fig.cap: "Classes de medicamentos mais utilizados"
+#| echo: false
+knitr::include_graphics("img/bar_class_total.png")
+```
+
+```{r fig-bar_prop_class}
+#| fig.cap: "Proporção das classes de medicamentos entre os grupos (Uso Ocasional vs Uso Contínuo)"
+#| echo: false
+knitr::include_graphics("img/bar_prop_class.png")
+```
+
+```{r}
+table1 <- readr::read_csv("table1.csv")
+
+opts <- options(knitr.kable.NA = "")
+
+kable(table1, "html", align = "lccc") |> 
+  pack_rows(index = c("Benzodiazepínico" = 4,
+                      "Drogas Z" = 2,
+                      "Antidepressivos Sedativos" = 4,
+                      "Anticonvulsivantes" = 2,
+                      "Antipsicóticos" = 2,
+                      "Agonista do receptor de melatonina" = 2,
+                      "Over the Counter" = 3
+                      )) |> 
+  add_indent(positions = c(22, 23, 25, 26, 28, 29, 31, 32, 34, 35, 37:42))
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
