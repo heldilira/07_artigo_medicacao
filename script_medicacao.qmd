@@ -19,13 +19,14 @@ library(easystats)
 ```
 
 ```{r}
-#| label: import and transform data
+#| label: import and transform data (df_insones_medicados)
 
 df <- read_csv("data/df.csv")
 
-df <- df |> 
+
+df_insones <- df |> 
   filter(insone == 1) |> 
-  filter(medicacao___0 == 0) |> 
+  rename(toma_remedio_tr = medicacao___0) |>
   mutate(
     sexo_tr = case_when(
       sexo == 1 ~ "Feminino",
@@ -45,12 +46,17 @@ df <- df |>
       etnia >= 2 ~ "Pretos e Pardos"),
     atividade_fisica_tr = case_when(
       atividade_fisica <= 1 ~ "Sedentário (<2x/semana)",
-      atividade_fisica >= 2 ~ "Ativo (>2x/semana)",
+      atividade_fisica >= 2 ~ "Ativo (≥2x/semana)",
     )) |>
   mutate(medicacao_semana_tr = case_when(
+    medicacao_semana == 0 ~ "Não toma",
     medicacao_semana <= 5 ~ "Uso Ocasional (1-5 dias)",
-    medicacao_semana >= 6 ~ "Uso Contínuo (6-7 dias)")) |> 
-  rename(toma_remedio = medicacao___0) |>
+    medicacao_semana >= 6 ~ "Uso Contínuo (6-7 dias)"
+    )) |> 
+    # Juntar Uso Ocasional e Uso Contínuo
+  mutate(uso_naouso = case_when(
+    medicacao_semana == 0 ~ "Não Usa",
+    medicacao_semana >= 1 ~ "Usa")) |> 
   mutate(classe_medicacao = case_when(
     medicacao___1 == 1 ~ "Benzodiazepínico",
     medicacao___2 == 1 ~ "Benzodiazepínico",
@@ -71,12 +77,25 @@ df <- df |>
     medicacao___17 == 1 ~ "Sem Receita",
     medicacao___18 == 1 ~ "Sem Receita",
     medicacao___19 == 1 ~"Sem Receita")) |> 
-  mutate(across(ends_with("tr"), as_factor))
+  mutate(across(ends_with("tr"), as_factor)) |> 
+  mutate(medicacao_semana_tr = fct_relevel(medicacao_semana_tr, c("Não toma", "Uso Ocasional (1-5 dias)", "Uso Contínuo (6-7 dias)")))
+
+df_insones |> 
+  dfSummary(round.digits = 2) |> stview()
+```
+
+Quem é esse povo que diz que não toma medicamentos? O problema parece ser que eles marcaram na variável `medicacao___` qualquer medicamentos que eles tomaram em algum momento da vida, não sabemos nem se relacionado a insônia.
+
+```{r}
+df_insones |> 
+  filter(medicacao_semana_tr == "Não toma") |> 
+  dfSummary(round.digits = 2) |> 
+  stview()
 ```
 
 ```{r}
-#| label: long_df
-long_df <- df |> 
+#| label: creating long_df e sum_df
+long_df <- df_insones |> 
   pivot_longer(
     cols = starts_with("medicacao___"),
     names_to = "medicacao",
@@ -122,10 +141,7 @@ long_df <- df |>
     medicacao == "Relaxante_muscular" ~ "Sem Receita",
     medicacao == "Dramin" ~ "Sem Receita")) |> 
   filter(!taken == 0)
-```
 
-```{r}
-#| label: sum_df
 sum_df <- long_df |> 
   group_by(medicacao) |> 
   summarise(total_taken = sum(taken, na.rm = TRUE)) |> 
@@ -154,9 +170,11 @@ sum_df <- long_df |>
 ```
 
 ```{r}
-#| label: ✅ barras por medicamento (filtrado para > 45)
+#| label: ✅ barras total medicamento (com filtro e sem filtro)
 
-bar_plot_filtered <- sum_df |> 
+# Filtrando para pegar os 10 medicamentos mais utilizados
+
+bar_meds_filtered <- sum_df |> 
   filter(total_taken > 45) |> 
   ggplot() +
   aes(
@@ -169,7 +187,27 @@ bar_plot_filtered <- sum_df |>
   coord_flip() +
   theme_minimal() 
 
-ggplot2::ggsave("img/bar_plot_filtered.png", plot = bar_plot_filtered, width = 10, height = 6, dpi = 300)
+ggplot2::ggsave("img/bar_meds_filtered.png", plot = bar_meds_filtered, width = 10, height = 6, dpi = 300)
+
+bar_meds_filtered
+
+# Versão sem filtro (todos os medicamentos)
+
+bar_meds_unfiltered <- sum_df |> 
+  ggplot() +
+  aes(
+    x = medicacao,
+    fill = classe_medicacao,
+    weight = total_taken
+  ) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Set2", direction = -1) +
+  coord_flip() +
+  theme_minimal() 
+
+ggplot2::ggsave("img/bar_meds_unfiltered.png", plot = bar_meds_unfiltered, width = 10, height = 6, dpi = 300)
+
+bar_meds_unfiltered
 ```
 
 ```{r}
@@ -179,11 +217,13 @@ bar_prop <- long_df |>
  ggplot() +
   aes(x = medicacao, fill = medicacao_semana_tr) +
   geom_bar(position = "fill") +
-  scale_fill_hue(direction = 1) +
+  scale_fill_brewer(palette = "Set2", direction = 1) +
   coord_flip() +
   theme_minimal()
 
 ggplot2::ggsave("img/bar_prop.png", plot = bar_prop, width = 10, height = 6, dpi = 300)
+
+bar_prop
 ```
 
 ```{r}
@@ -227,7 +267,7 @@ ggplot2::ggsave("img/bar_prop_class.png", plot = bar_prop_class, width = 10, hei
 ```{r}
 #| label: table 1
 
-tbl <- df |> 
+tbl <- df_insones |> 
   select(medicacao___1, medicacao___2, medicacao___3, medicacao___4, medicacao___5, medicacao___6, medicacao___7, medicacao___8, medicacao___9, medicacao___9, medicacao___12, medicacao___10, starts_with("medicacao___"),
          medicacao_semana_tr,
          idade, 
@@ -284,6 +324,52 @@ opts <- options(knitr.kable.NA = "")
 
 tbl_tibble <- as_tibble(x = tbl) 
 write_csv(x = tbl_tibble, file = "table1.csv", na = "")
+
+tbl
+```
+
+```{r}
+#| label: table 1 (uso vs não uso) apenas variáveis socio
+
+tbl1 <- df_insones |> 
+  select(uso_naouso,
+         idade, 
+         sexo_tr,
+         atividade_fisica_tr,
+         escolaridade_tr, 
+         estado_civil_tr, 
+         etnia_tr,
+         regiao, 
+         igi_escore, 
+         starts_with("ehad_")) |> 
+  tbl_summary(
+    by = uso_naouso,
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    digits = all_continuous() ~ 2,
+    label = list(escolaridade_tr ~ "Escolaridade",
+                 idade ~ "Idade",
+                 etnia_tr ~ "Etnia",
+                 sexo_tr ~ "Sexo",
+                 regiao ~ "Região",
+                 estado_civil_tr ~ "Estado Civil",
+                 atividade_fisica_tr ~ "Atividade Física",
+                 igi_escore ~ "IGI Score",
+                 ehad_depressao_escore ~ "Depressão (HADS-D)",
+                 ehad_ansiedade_escore ~ "Ansiedade (HADS-A)"
+                 ),
+    missing = "no"
+  ) |> add_p()
+
+opts <- options(knitr.kable.NA = "")
+
+
+tbl_tibble <- as_tibble(x = tbl) 
+write_csv(x = tbl_tibble, file = "table_1.csv", na = "")
+
+tbl1
 ```
 
 ```{r}

@@ -26,10 +26,16 @@ library(kableExtra)
 library(tidyverse)
 ```
 
-```{r fig-bar_plot_filtered}
-#| label: bar_plot_filtered
+```{r fig-bar_meds_filtered}
+#| label: bar_meds_filtered
 #| fig.cap: "Os 10 medicamentos mais utilizados pela amostra total"
-knitr::include_graphics("img/bar_plot_filtered.png")
+knitr::include_graphics("img/bar_meds_filtered.png")
+```
+
+```{r fig-bar_meds_unfiltered}
+#| label: bar_meds_unfiltered
+#| fig.cap: "Medicamentos mais utilizados pela amostra total"
+knitr::include_graphics("img/bar_meds_unfiltered.png")
 ```
 
 ```{r fig-bar_prop}
@@ -51,20 +57,24 @@ knitr::include_graphics("img/bar_prop_class.png")
 ```
 
 ```{r}
-#| tab.cap: "Tabela 1 (Uso Ocasional vs Uso Contínuo)"
+#| label: tabela 1 socio (Uso vs Não Uso) 
+#| tab.cap: "Tabela 1 com dados sociodemográficos (Uso vs Não Uso)"
 
-table1 <- readr::read_csv("table1.csv")
+table1 <- readr::read_csv("table_1.csv")
 
 opts <- options(knitr.kable.NA = "")
 
 kable(table1, "html", align = "lccc") |> 
-  pack_rows(index = c("Benzodiazepínico" = 4,
-                      "Drogas Z" = 2,
-                      "Antidepressivos Sedativos" = 4,
-                      "Anticonvulsivantes" = 2,
-                      "Antipsicóticos" = 2,
-                      "Agonista do receptor de melatonina" = 2,
-                      "Over the Counter" = 3
-                      )) |> 
-  add_indent(positions = c(22, 23, 25, 26, 28, 29, 31, 32, 34, 35, 37:42))
+  add_indent(positions = c(3,4,6,7,9,10,12,13,15,16,18:23))
+```
+
+```{r}
+#| label: tabela 2 (Ocasional vs Contínuo)
+#| tab.cap: "Tabela 2 medicamentos (Ocasional vs Contínuo)"
+
+table2 <- readr::read_csv("table_2.csv")
+
+opts <- options(knitr.kable.NA = "")
+
+kable(table2, "html", align = "lccc")
 ```

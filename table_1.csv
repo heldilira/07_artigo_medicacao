@@ -1,0 +1,27 @@
+**Characteristic**,"**Não Usa**, N = 464","**Usa**, N = 694",**p-value**
+Idade,38.79 (10.23),39.24 (9.82),0.5
+Sexo,,,0.034
+Feminino,347 (75%),555 (80%),
+Masculino,116 (25%),137 (20%),
+Atividade Física,,,0.7
+Ativo (≥2x/semana),241 (52%),353 (51%),
+Sedentário (<2x/semana),223 (48%),340 (49%),
+Escolaridade,,,0.8
+Superior,340 (74%),511 (74%),
+Nao Superior,121 (26%),177 (26%),
+Estado Civil,,,0.3
+Married/United,206 (44%),330 (48%),
+Single/Divorced,258 (56%),364 (52%),
+Etnia,,,0.001
+Branco,303 (66%),511 (74%),
+Pretos e Pardos,159 (34%),176 (26%),
+Região,,,0.006
+Distrito Federal,6 (1.3%),24 (3.5%),
+Região Centro-Oeste,5 (1.1%),25 (3.6%),
+Região Nordeste,29 (6.3%),59 (8.5%),
+Região Norte,11 (2.4%),20 (2.9%),
+Região Sudeste,373 (81%),504 (73%),
+Região Sul,39 (8.4%),62 (8.9%),
+IGI Score,17.71 (4.06),19.93 (4.04),<0.001
+Depressão (HADS-D),9.00 (4.22),9.84 (4.42),0.001
+Ansiedade (HADS-A),10.92 (4.18),12.00 (4.26),<0.001
