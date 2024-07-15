@@ -77,8 +77,9 @@ df_insones <- df |>
     medicacao___17 == 1 ~ "Sem Receita",
     medicacao___18 == 1 ~ "Sem Receita",
     medicacao___19 == 1 ~"Sem Receita")) |> 
-  mutate(across(ends_with("tr"), as_factor)) |> 
-  mutate(medicacao_semana_tr = fct_relevel(medicacao_semana_tr, c("Não toma", "Uso Ocasional (1-5 dias)", "Uso Contínuo (6-7 dias)")))
+  mutate(across(c(ends_with("tr"), "uso_naouso"), as_factor)) |> 
+  mutate(medicacao_semana_tr = fct_relevel(medicacao_semana_tr, c("Não toma", "Uso Ocasional (1-5 dias)", "Uso Contínuo (6-7 dias)"))) |> 
+  mutate(uso_naouso = fct_relevel(uso_naouso, c("Não Usa", "Usa")))
 
 df_insones |> 
   dfSummary(round.digits = 2) |> stview()
@@ -95,7 +96,8 @@ df_insones |>
 
 ```{r}
 #| label: creating long_df e sum_df
-long_df <- df_insones |> 
+long_df <- df_insones |>
+  filter(uso_naouso == "Usa") |> 
   pivot_longer(
     cols = starts_with("medicacao___"),
     names_to = "medicacao",
@@ -143,6 +145,7 @@ long_df <- df_insones |>
   filter(!taken == 0)
 
 sum_df <- long_df |> 
+  filter(uso_naouso == "Usa") |> 
   group_by(medicacao) |> 
   summarise(total_taken = sum(taken, na.rm = TRUE)) |> 
   mutate(classe_medicacao = case_when(
@@ -169,12 +172,14 @@ sum_df <- long_df |>
          medicacao = fct_reorder(medicacao, total_taken))
 ```
 
+# Gráficos
+
 ```{r}
 #| label: ✅ barras total medicamento (com filtro e sem filtro)
 
 # Filtrando para pegar os 10 medicamentos mais utilizados
 
-bar_meds_filtered <- sum_df |> 
+bar_meds_filtered <- sum_df |>
   filter(total_taken > 45) |> 
   ggplot() +
   aes(
@@ -212,7 +217,7 @@ bar_meds_unfiltered
 
 ```{r}
 #| label: ✅ barras de proporção de uso de medicamentos entre os grupos (ocasional vs contínuo)
-#| 
+
 bar_prop <- long_df |>
  ggplot() +
   aes(x = medicacao, fill = medicacao_semana_tr) +
@@ -227,7 +232,7 @@ bar_prop
 ```
 
 ```{r}
-#| label: barras por classe
+#| label: barras por classe (total)
 
 bar_class_total <- sum_df |> 
   group_by(classe_medicacao)|>
@@ -251,6 +256,8 @@ bar_class_total
 ```
 
 ```{r}
+#| label: barras de classe com proporção (contínuo vs ocasional)
+
 bar_prop_class <- long_df |>
  ggplot() +
   aes(x = classe_medicacao, fill = medicacao_semana_tr) +
@@ -260,25 +267,19 @@ bar_prop_class <- long_df |>
   theme_minimal()
 
 ggplot2::ggsave("img/bar_prop_class.png", plot = bar_prop_class, width = 10, height = 6, dpi = 300)
+
+bar_prop_class
 ```
 
 # Tabela de Descritivos
 
 ```{r}
-#| label: table 1
+#| label: table 2 (contínuo vs ocasional) apenas meds
 
-tbl <- df_insones |> 
-  select(medicacao___1, medicacao___2, medicacao___3, medicacao___4, medicacao___5, medicacao___6, medicacao___7, medicacao___8, medicacao___9, medicacao___9, medicacao___12, medicacao___10, starts_with("medicacao___"),
-         medicacao_semana_tr,
-         idade, 
-         sexo_tr,
-         atividade_fisica_tr,
-         escolaridade_tr, 
-         estado_civil_tr, 
-         etnia_tr,
-         regiao, 
-         igi_escore, 
-         starts_with("ehad_")) |> 
+tbl2 <- df_insones |>
+  filter(medicacao_semana_tr %in% c("Uso Ocasional (1-5 dias)", "Uso Contínuo (6-7 dias)")) |> 
+  mutate(medicacao_semana_tr = fct_drop(medicacao_semana_tr)) |> 
+  select(medicacao___1, medicacao___2, medicacao___3, medicacao___4, medicacao___5, medicacao___6, medicacao___7, medicacao___8, medicacao___9, medicacao___9, medicacao___12, medicacao___10, starts_with("medicacao___"),medicacao_semana_tr) |> 
   tbl_summary(
     by = medicacao_semana_tr,
     statistic = list(
@@ -286,17 +287,7 @@ tbl <- df_insones |>
       all_categorical() ~ "{n} ({p}%)"
     ),
     digits = all_continuous() ~ 2,
-    label = list(escolaridade_tr ~ "Escolaridade",
-                 idade ~ "Idade",
-                 etnia_tr ~ "Etnia",
-                 sexo_tr ~ "Sexo",
-                 regiao ~ "Região",
-                 estado_civil_tr ~ "Estado Civil",
-                 atividade_fisica_tr ~ "Atividade Física",
-                 igi_escore ~ "IGI Score",
-                 ehad_depressao_escore ~ "Depressão (HADS-D)",
-                 ehad_ansiedade_escore ~ "Ansiedade (HADS-A)",
-                 medicacao___1 ~ "Alprazolam",
+    label = list(medicacao___1 ~ "Alprazolam",
                  medicacao___2 ~  "Bromazepam",
                  medicacao___3 ~ "Clonazepam",
                  medicacao___4 ~ "Diazepam",
@@ -321,15 +312,28 @@ tbl <- df_insones |>
 
 opts <- options(knitr.kable.NA = "")
 
+tbl_tibble <- as_tibble(x = tbl2) 
 
-tbl_tibble <- as_tibble(x = tbl) 
-write_csv(x = tbl_tibble, file = "table1.csv", na = "")
+write_csv(x = tbl_tibble, file = "table_2.csv", na = "")
 
-tbl
+kable_html <- kable(tbl2, "html", align = "lccc") |> 
+  pack_rows(index = c("Benzodiazepínico" = 4,
+                      "Drogas Z" = 2,
+                      "Antidepressivos Sedativos" = 4,
+                      "Anticonvulsivantes" = 2,
+                      "Antipsicóticos" = 2,
+                      "Agonista do receptor de melatonina" = 2,
+                      "Over the Counter" = 3))
+
+html_file <- "table_2.html"
+writeLines(as.character(kable_html), con = html_file)
+pandoc_convert(html_file, to = "docx", output = "table_2.docx")
+
+kable_html
 ```
 
 ```{r}
-#| label: table 1 (uso vs não uso) apenas variáveis socio
+#| label: ✅ table 1 apenas socio (uso vs não uso)
 
 tbl1 <- df_insones |> 
   select(uso_naouso,
@@ -365,37 +369,24 @@ tbl1 <- df_insones |>
 
 opts <- options(knitr.kable.NA = "")
 
-
-tbl_tibble <- as_tibble(x = tbl) 
+tbl_tibble <- as_tibble(x = tbl1) 
 write_csv(x = tbl_tibble, file = "table_1.csv", na = "")
 
-tbl1
-```
+kable_html <- kable(tbl1, "html", align = "lccc")
 
-```{r}
-kable_html <- kable(tbl, "html", align = "lccc") |> 
-  pack_rows(index = c("Benzodiazepínico" = 4,
-                      "Drogas Z" = 2,
-                      "Antidepressivos Sedativos" = 4,
-                      "Anticonvulsivantes" = 2,
-                      "Antipsicóticos" = 2,
-                      "Agonista do receptor de melatonina" = 2,
-                      "Over the Counter" = 3
-                      )) |> 
-  add_indent(positions = c(22, 23, 25, 26, 28, 29, 31, 32, 34, 35, 37:42))
-
-html_file <- "index.html"
+html_file <- "table_1.html"
 writeLines(as.character(kable_html), con = html_file)
-pandoc_convert(html_file, to = "docx", output = "table.docx")
+pandoc_convert(html_file, to = "docx", output = "table_1.docx")
+
+tbl1
 ```
 
 Regressão Logística
 
 ```{r}
 
-#df$medicacao_semana_tr <- fct_relevel(df$randomizacao_tr, c("Uso Contínuo (6-7 dias)", "Uso Ocasional (1-5 dias)"))
 
-logit_model <- glm(medicacao_semana_tr ~ sexo_tr + escolaridade_tr + estado_civil_tr + etnia_tr + atividade_fisica_tr + igi_escore + ehad_ansiedade_escore + ehad_depressao_escore, data = df, family = binomial)
+logit_model <- glm(uso_naouso ~ sexo_tr + escolaridade_tr + estado_civil_tr + etnia_tr + atividade_fisica_tr + igi_escore + ehad_ansiedade_escore + ehad_depressao_escore, data = df_insones, family = binomial)
 
 modelsummary(logit_model,
              exponentiate = TRUE,
@@ -403,12 +394,14 @@ modelsummary(logit_model,
              fmt = 2, 
              estimate = "{estimate}{stars} [{conf.low}, {conf.high}]", statistic = NULL )
 
-levels(df$medicacao_semana_tr)
-#  report(logit_model)
+levels(df_insones$uso_naouso)
+report(logit_model)
+
+write_rds(x = df_insones, file = "data/df_insones.RDS")
 ```
 
 ```{r}
-#| label: check model (VD = medicacao_semana_tr)
+#| label: check model (VD = uso_naouso)
 
 check_autocorrelation(logit_model)
 check_collinearity(logit_model)

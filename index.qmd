@@ -24,6 +24,8 @@ options(knitr.table.format = "html")
 
 library(kableExtra)
 library(tidyverse)
+library(easystats)
+library(modelsummary)
 ```
 
 ```{r fig-bar_meds_filtered}
@@ -77,4 +79,24 @@ table2 <- readr::read_csv("table_2.csv")
 opts <- options(knitr.kable.NA = "")
 
 kable(table2, "html", align = "lccc")
+```
+
+```{r}
+#| label: Regressão Logística (Não Uso vs Uso)
+
+df_insones <- read_rds(file = "data/df_insones.RDS")
+
+logit_model <- glm(uso_naouso ~ sexo_tr + escolaridade_tr + estado_civil_tr + etnia_tr + atividade_fisica_tr + igi_escore + ehad_ansiedade_escore + ehad_depressao_escore, data = df_insones, family = binomial)
+
+modelsummary(logit_model,
+             exponentiate = TRUE,
+             stars = c('*' =.05, '**' = .01),
+             fmt = 2, 
+             estimate = "{estimate}{stars} [{conf.low}, {conf.high}]", statistic = NULL )
+
+levels(df_insones$uso_naouso)
+report(logit_model)
+check_autocorrelation(logit_model)
+check_collinearity(logit_model)
+check_model(logit_model)
 ```
