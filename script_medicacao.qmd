@@ -42,7 +42,7 @@ df_insones <- df |>
       randomizacao == 2 ~ "CBT",
       randomizacao == 3 ~ "WL"),
     etnia_tr = case_when(
-      etnia == 1 ~ "Branco",
+      etnia == 1 ~ "Brancos",
       etnia >= 2 ~ "Pretos e Pardos"),
     atividade_fisica_tr = case_when(
       atividade_fisica <= 1 ~ "Sedentário (<2x/semana)",
@@ -79,7 +79,8 @@ df_insones <- df |>
     medicacao___19 == 1 ~"Sem Receita")) |> 
   mutate(across(c(ends_with("tr"), "uso_naouso"), as_factor)) |> 
   mutate(medicacao_semana_tr = fct_relevel(medicacao_semana_tr, c("Não toma", "Uso Ocasional (1-5 dias)", "Uso Contínuo (6-7 dias)"))) |> 
-  mutate(uso_naouso = fct_relevel(uso_naouso, c("Não Usa", "Usa")))
+  mutate(uso_naouso = fct_relevel(uso_naouso, c("Não Usa", "Usa"))) |> 
+  mutate(etnia_tr = fct_relevel(etnia_tr, c("Pretos e Pardos", "Brancos")))
 
 df_insones |> 
   dfSummary(round.digits = 2) |> stview()
@@ -384,8 +385,6 @@ tbl1
 Regressão Logística
 
 ```{r}
-
-
 logit_model <- glm(uso_naouso ~ sexo_tr + escolaridade_tr + estado_civil_tr + etnia_tr + atividade_fisica_tr + igi_escore + ehad_ansiedade_escore + ehad_depressao_escore, data = df_insones, family = binomial)
 
 modelsummary(logit_model,
@@ -407,3 +406,5 @@ check_autocorrelation(logit_model)
 check_collinearity(logit_model)
 check_model(logit_model)
 ```
+
+Comparando o Igi de brancos/pretos e pardos
