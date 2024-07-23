@@ -16,13 +16,14 @@ library(knitr)
 library(rmarkdown)
 library(patchwork)
 library(easystats)
+library(ggstatsplot)
+library(huxtable)
 ```
 
 ```{r}
-#| label: import and transform data (df_insones_medicados)
+#| label: import and transform data (df_insones_medicados), creating long_df and sum_df
 
 df <- read_csv("data/df.csv")
-
 
 df_insones <- df |> 
   filter(insone == 1) |> 
@@ -47,7 +48,7 @@ df_insones <- df |>
     atividade_fisica_tr = case_when(
       atividade_fisica <= 1 ~ "Sedentário (<2x/semana)",
       atividade_fisica >= 2 ~ "Ativo (≥2x/semana)",
-    )) |>
+      )) |>
   mutate(medicacao_semana_tr = case_when(
     medicacao_semana == 0 ~ "Não toma",
     medicacao_semana <= 5 ~ "Uso Ocasional (1-5 dias)",
@@ -82,21 +83,8 @@ df_insones <- df |>
   mutate(uso_naouso = fct_relevel(uso_naouso, c("Não Usa", "Usa"))) |> 
   mutate(etnia_tr = fct_relevel(etnia_tr, c("Pretos e Pardos", "Brancos")))
 
-df_insones |> 
-  dfSummary(round.digits = 2) |> stview()
-```
+# creating long_df and sum_df
 
-Quem é esse povo que diz que não toma medicamentos? O problema parece ser que eles marcaram na variável `medicacao___` qualquer medicamentos que eles tomaram em algum momento da vida, não sabemos nem se relacionado a insônia.
-
-```{r}
-df_insones |> 
-  filter(medicacao_semana_tr == "Não toma") |> 
-  dfSummary(round.digits = 2) |> 
-  stview()
-```
-
-```{r}
-#| label: creating long_df e sum_df
 long_df <- df_insones |>
   filter(uso_naouso == "Usa") |> 
   pivot_longer(
@@ -173,6 +161,15 @@ sum_df <- long_df |>
          medicacao = fct_reorder(medicacao, total_taken))
 ```
 
+Quem é esse povo que diz que não toma medicamentos? O problema parece ser que eles marcaram na variável `medicacao___` qualquer medicamentos que eles tomaram em algum momento da vida, não sabemos nem se relacionado a insônia.
+
+```{r}
+df_insones |> 
+  filter(medicacao_semana_tr == "Não toma") |> 
+  dfSummary(round.digits = 2) |> 
+  stview()
+```
+
 # Gráficos
 
 ```{r}
@@ -223,7 +220,7 @@ bar_prop <- long_df |>
  ggplot() +
   aes(x = medicacao, fill = medicacao_semana_tr) +
   geom_bar(position = "fill") +
-  scale_fill_brewer(palette = "Set2", direction = 1) +
+  scale_fill_hue(direction = 1) +
   coord_flip() +
   theme_minimal()
 
@@ -382,29 +379,76 @@ pandoc_convert(html_file, to = "docx", output = "table_1.docx")
 tbl1
 ```
 
-Regressão Logística
+# Regressão Logística
 
 ```{r}
+
 logit_model <- glm(uso_naouso ~ sexo_tr + escolaridade_tr + estado_civil_tr + etnia_tr + atividade_fisica_tr + igi_escore + ehad_ansiedade_escore + ehad_depressao_escore, data = df_insones, family = binomial)
 
-modelsummary(logit_model,
+logit_table <- modelsummary(logit_model,
              exponentiate = TRUE,
              stars = c('*' =.05, '**' = .01),
              fmt = 2, 
-             estimate = "{estimate}{stars} [{conf.low}, {conf.high}]", statistic = NULL )
+             estimate = "{estimate}{stars} [{conf.low}, {conf.high}]", 
+             output = "huxtable",
+             statistic = NULL )
 
+# Checking the model
 levels(df_insones$uso_naouso)
-report(logit_model)
-
-write_rds(x = df_insones, file = "data/df_insones.RDS")
-```
-
-```{r}
-#| label: check model (VD = uso_naouso)
-
 check_autocorrelation(logit_model)
 check_collinearity(logit_model)
 check_model(logit_model)
+report(logit_model)
+write_rds(x = df_insones, file = "data/df_insones.RDS")
+
+# Saving a table and report()
+quick_docx(file = "outputs/logit_model.docx", ... = logit_table, open = FALSE)
+
+logit_docx <- read_docx("outputs/logit_model.docx") |> 
+  body_add((report(logit_model)), style = "Normal")
+
+print(logit_docx, target = "outputs/logit_model.docx")
 ```
 
 Comparando o Igi de brancos/pretos e pardos
+
+```{r}
+
+# igi_etnia_plot <- df_insones |> 
+#   filter(!is.na(etnia_tr)) |> 
+#   ggplot() +
+#   aes(x = "", y = igi_escore, fill = etnia_tr) +
+#   geom_boxplot() +
+#   scale_fill_hue(direction = 1) +
+#   theme_minimal()
+
+```
+
+Tabela de Comparação entre Pretos e Pardos
+
+```{r}
+df_insones |> 
+  select(uso_naouso,
+         idade, 
+         sexo_tr,
+         atividade_fisica_tr,
+         escolaridade_tr, 
+         etnia_tr,
+         starts_with("ehad_d")) |> 
+  tbl_summary(
+    by = etnia_tr,
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    digits = all_continuous() ~ 2,
+    label = list(escolaridade_tr ~ "Escolaridade",
+                 idade ~ "Idade",
+                 etnia_tr ~ "Etnia",
+                 sexo_tr ~ "Sexo",
+                 atividade_fisica_tr ~ "Atividade Física",
+                 ehad_depressao_escore ~ "Depressão (HADS-D)"
+                 ),
+    missing = "no"
+  ) |> add_p()
+```

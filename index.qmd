@@ -26,37 +26,16 @@ library(kableExtra)
 library(tidyverse)
 library(easystats)
 library(modelsummary)
+library(ggstatsplot)
 ```
 
-```{r fig-bar_meds_filtered}
-#| label: bar_meds_filtered
-#| fig.cap: "Os 10 medicamentos mais utilizados pela amostra total"
-knitr::include_graphics("img/bar_meds_filtered.png")
-```
+# Tabela 1
 
-```{r fig-bar_meds_unfiltered}
-#| label: bar_meds_unfiltered
-#| fig.cap: "Medicamentos mais utilizados pela amostra total"
-knitr::include_graphics("img/bar_meds_unfiltered.png")
-```
+Os participantes foram divididos em indivíduos que não tomaram medicamentos para dormir no último mês (`Não Uso`) e aqueles que tomam pelo menos 1x por semana (`Uso`), respondendo a seguinte pergunta:
 
-```{r fig-bar_prop}
-#| label: bar_prop
-#| fig.cap: "Proporção de uso de medicamentos entre os grupos (Uso Ocasional vs Uso Contínuo)"
-knitr::include_graphics("img/bar_prop.png")
-```
+> No último mês, com qual frequência semanal você usou alguma destas medicações para dormir:
 
-```{r fig-bar_class_total}
-#| label: bar_class_total
-#| fig.cap: "Classes de medicamentos mais utilizados"
-knitr::include_graphics("img/bar_class_total.png")
-```
-
-```{r fig-bar_prop_class}
-#| label: bar_prop_class
-#| fig.cap: "Proporção das classes de medicamentos entre os grupos (Uso Ocasional vs Uso Contínuo)"
-knitr::include_graphics("img/bar_prop_class.png")
-```
+Esta pergunta acompanhava a lista dos 19 medicamentos da Tabela 2.As opções eram de 0x/semana a 7x/semana, sendo assim, pessoas do grupo `Não Usa` marcaram 0x/semana no ultimo mês.
 
 ```{r}
 #| label: tabela 1 socio (Uso vs Não Uso) 
@@ -70,6 +49,14 @@ kable(table1, "html", align = "lccc") |>
   add_indent(positions = c(3,4,6,7,9,10,12,13,15,16,18:23))
 ```
 
+# Tabela 2
+
+Para verificar o perfil de distribuição de uso dos medicamentos entre indivíduos que tomam medicamentos em `Uso Contínuo` e `Uso Ocasional`, de acordo com a mesma pergunta anterior:
+
+> No último mês, com qual frequência semanal você usou alguma destas medicações para dormir:
+
+Aqueles que tomam entre 1 e 5x/semana foram considerados usuários ocasionais, e acima ou igual a 6x/semana foram considerados usuários contínuos.
+
 ```{r}
 #| label: tabela 2 (Ocasional vs Contínuo)
 #| tab.cap: "Tabela 2 medicamentos (Ocasional vs Contínuo)"
@@ -81,22 +68,93 @@ opts <- options(knitr.kable.NA = "")
 kable(table2, "html", align = "lccc")
 ```
 
+# Gráficos dos Medicamentos
+
+Para analisar visualmente a distribuição de uso de medicamentos na amostra total e em grupos, foram feitos gráficos de barras
+
+## Os 10 medicamentos mais utilizados pela amostra total
+
+```{r fig-bar_meds_filtered}
+#| label: bar_meds_filtered
+knitr::include_graphics("img/bar_meds_filtered.png")
+```
+
+## Medicamentos mais utilizados pela amostra total
+
+```{r fig-bar_meds_unfiltered}
+#| label: bar_meds_unfiltered
+knitr::include_graphics("img/bar_meds_unfiltered.png")
+```
+
+## Proporção de uso de medicamentos entre os grupos (Uso Ocasional vs Uso Contínuo)
+
+```{r fig-bar_prop}
+#| label: bar_prop
+knitr::include_graphics("img/bar_prop.png")
+```
+
+## Classes dos Medicamentos mais utilizadas pela amostra total
+
+```{r fig-bar_class_total}
+#| label: bar_class_total
+knitr::include_graphics("img/bar_class_total.png")
+```
+
+## Proporção de uso das classes de medicamentos entre os grupos (Uso Ocasional vs Uso Contínuo)
+
+```{r fig-bar_prop_class}
+#| label: bar_prop_class
+knitr::include_graphics("img/bar_prop_class.png")
+```
+
+# Regressão Logística
+
+Para descrever os fatores (psicologicos e sociais) associados ao `Uso` de medicamentos, foi feita uma regressão logística. A tabela apresenta os resultado em Odds Ratio, e o texto abaixo os resultados no formato em log-odds.
+
 ```{r}
 #| label: Regressão Logística (Não Uso vs Uso)
 
 df_insones <- read_rds(file = "data/df_insones.RDS")
 
-logit_model <- glm(uso_naouso ~ sexo_tr + escolaridade_tr + estado_civil_tr + etnia_tr + atividade_fisica_tr + igi_escore + ehad_ansiedade_escore + ehad_depressao_escore, data = df_insones, family = binomial)
+logit_model <- glm(uso_naouso ~ idade + sexo_tr + escolaridade_tr + estado_civil_tr + etnia_tr + atividade_fisica_tr + igi_escore + ehad_ansiedade_escore + ehad_depressao_escore, data = df_insones, family = binomial)
 
-modelsummary(logit_model,
+logit_table <- modelsummary(logit_model,
              exponentiate = TRUE,
              stars = c('*' =.05, '**' = .01),
              fmt = 2, 
-             estimate = "{estimate}{stars} [{conf.low}, {conf.high}]", statistic = NULL )
-
+             estimate = "{estimate}{stars} [{conf.low}, {conf.high}]", 
+             statistic = NULL, 
+             notes = "* p < 0.05, ** p < 0.001", 
+             #coef_map = cm
+             )
 levels(df_insones$uso_naouso)
+logit_table
 report(logit_model)
+```
+
+```{r}
+#| label: Checking Model
+#| collapse: true
+#| eval: false
+#| echo: false
 check_autocorrelation(logit_model)
 check_collinearity(logit_model)
 check_model(logit_model)
+```
+
+## Comparação do IGI entre Pretos/Pardos vs Brancos
+
+De acordo com a nossa regressão logística da sessão anterior, vimos que o IGI ($OR$ = `r round(exp(logit_model[["coefficients"]][["igi_escore"]]), 2)`) é um preditor importante para o Uso de medicamentos, bem como a Etnia ($OR$ = `r round(exp(logit_model[["coefficients"]][["etnia_trBrancos"]]), 2)`), para verificar se a diferença poderia ser explicada pela diferença do IGI entre os grupos de Etnia, foi feito um teste-t comparando o IGI entre ambos os grupos:
+
+## Report (teste-t) e gráfico da comparação
+
+```{r}
+report(t.test(formula = df_insones$igi_escore ~ df_insones$etnia_tr))
+
+igi_etnia_plot <- ggbetweenstats(data = df_insones, 
+               x = etnia_tr, 
+               y = igi_escore, 
+               pairwise.display = "s",
+               violin.args = list(width = 0, linewidth = 0))
+igi_etnia_plot
 ```
